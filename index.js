@@ -84,6 +84,16 @@ class RustPlugin {
     );
   }
 
+  buildShell(funcArgs, cargoPackage, binary) {
+      let cargoFlags = (funcArgs || {}).cargoFlags || this.custom.cargoFlags;
+      if (cargoPackage != undefined) {
+          cargoFlags = [...cargoFlags, "-p", cargoPackage];
+      }
+      return spawnSync(path.join(__dirname, "build.sh"),
+                       cargoFlags,
+                       NO_OUTPUT_CAPTURE)
+  }
+
   functions() {
     if (this.options.function) {
       return [this.options.function];
@@ -111,15 +121,27 @@ class RustPlugin {
         binary = cargoPackage;
       }
       this.serverless.cli.log(`Building native Rust ${func.handler} func...`);
-      const res = this.runDocker(func.rust, cargoPackage, binary);
-      if (res.error || res.status > 0) {
-        this.serverless.cli.log(
-          `Dockerized Rust build encountered an error: ${res.error} ${
+        if (false) {
+            const res = this.runDocker(func.rust, cargoPackage, binary);
+            if (res.error || res.status > 0) {
+                this.serverless.cli.log(
+                    `Dockerized Rust build encountered an error: ${res.error} ${
             res.status
           }.`
-        );
-        throw new Error(res.error);
-      }
+                );
+                throw new Error(res.error);
+            }
+        } else {
+            const res = this.buildShell(func.rust, cargoPackage, binary);
+            if (res.error || res.status > 0) {
+                this.serverless.cli.log(
+                    `Shell Rust build encountered an error: ${res.error} ${
+            res.status
+          }.`
+                );
+                throw new Error(res.error);
+            }
+        }
       // If all went well, we should now have find a packaged compiled binary under `target/lambda/release`.
       //
       // The AWS "provided" lambda runtime requires executables to be named
